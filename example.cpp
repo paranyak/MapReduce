@@ -125,11 +125,21 @@ int main()
     cout << "ONLY writing time: " << to_us(writing_time) << endl;
     cout << "ALL time: " << to_us(all_time) << endl;
 
+    // записуємо всі значення обрахування часу в файл, ВОНИ НЕ ВИДАЛЯЮТЬСЯ кожного разу
     fstream log;
     log.open("/home/natasha/CLionProjects/threads_project/result.txt", fstream::app);
-    unsigned int dwDuration = reading_time.count();
-    log<< dwDuration;
+    std::chrono::duration<double, std::milli> r_ms = reading_time;
+    std::chrono::duration<double, std::milli> w_ms = writing_time;
+    std::chrono::duration<double, std::milli> c_ms = counting_time;
+    std::chrono::duration<double, std::milli> all_ms = all_time;
+    log<< r_ms.count();
     log<< "  ";
+    log<< w_ms.count();
+    log<< "  ";
+    log<< c_ms.count();
+    log<< "  ";
+    log<< all_ms.count();
+    log<< " \n";
     log.close();
     pthread_exit(NULL);
 
