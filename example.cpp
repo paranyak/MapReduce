@@ -111,15 +111,15 @@ int main()
 
     auto stage4_start_time = get_current_time_fenced(); //початок запису
     //запис в файли
-    //write_file(fileWA, m);
-    //write_vector_file(fileWN, mapcopy);
+    write_file(fileWA, m);
+    write_vector_file(fileWN, mapcopy);
     auto stage5_start_time = get_current_time_fenced(); //кінець запису
     auto writing_time = stage5_start_time - stage4_start_time;
 
     auto all_time = writing_time + counting_time + reading_time;
 
 
-
+    //можливо знадобиться для одного процесу
     cout << "ONLY reading time: " << to_us(reading_time) << endl;
     cout << "ONLY counting time: " << to_us(counting_time) << endl;
     cout << "ONLY writing time: " << to_us(writing_time) << endl;
