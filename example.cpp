@@ -79,7 +79,7 @@ int main()
 
     //потоки
    for(id = 0; id < N; id++){
-        my_thread[id] =  thread(counting_words_worker, all_words, starting, ending);
+       my_thread[id] =  thread(counting_words_worker, all_words, starting, ending);
         starting += step +1;
         if(ending + step > all_words.size()){
             ending = all_words.size();
