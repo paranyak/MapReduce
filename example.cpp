@@ -43,18 +43,32 @@ void reading(){                     //відкривання файлу з да�
         cerr << "Error" << endl;
     }
     while (myfile >> word) {        //додаємо рядок без =
-        size_t pos = word.find("=");
-        string str3 = word.substr(pos+1);
-        words.push_back(str3);
+        words.push_back(word);
     }
-    for (int i = 0; i < words.size(); ++i) {     //прінт всіх
-        cout << words[i] << ' ';}
-    N = atoi( words[words.size()-1].c_str() );      // останній елемент кастимо в інт
-    fileO = words[0].substr(1, words[0].length()-2);  //шлях без лапок
-    fileWA = words[1].substr(1, words[1].length()-2);
-    fileWN = words[2].substr(1, words[2].length()-2);
-    //cout << fileO + "    " + fileWA + "     " + fileWN << endl;
 
+    for (int i = 0; i < words.size(); ++i) {     //прінт всіх
+        cout << words[i] << ' ';
+        if( words[i].find("infile=") != std::string::npos ){
+            size_t pos = words[i].find("infile=");
+            fileO = words[i].substr(pos+8);
+            fileO = fileO.substr(0, fileO.length()-1);
+        }
+        else if( words[i].find("out_by_a=") != std::string::npos){
+            size_t pos = words[i].find("out_by_a=");
+            fileWA = words[i].substr(pos+10);
+            fileWA = fileWA.substr(0, fileWA.length()-1);
+        }
+        else if( words[i].find("out_by_n=") != std::string::npos){
+            size_t pos = words[i].find("out_by_n=");
+            fileWN = words[i].substr(pos+10);
+            fileWN = fileWN.substr(0, fileWN.length()-1);
+        }
+        else if( words[i].find("threads=") != std::string::npos){
+            size_t pos = words[i].find("threads=");
+            N = atoi(words[i].substr(pos+8).c_str());
+        }
+
+    }
 }
 
 

@@ -2,6 +2,23 @@ import subprocess
 import math
 subprocess.call(["g++", "/home/natasha/CLionProjects/threads_project/example.cpp","-o", "example" ,"-std=c++11", "-pthread"])
 print("Compiled")
+configType = str(input("Do you want to open config file(f) or enter from console(c)? f/c "))
+if configType == "c":
+	f = open("/home/natasha/CLionProjects/threads_project/Read.txt", "w")
+	infile=str(input("Enter infile, please... "))
+	out_by_a=str(input("Enter outfile by a, please... "))
+	out_by_n=str(input("Enter outfile by n , please... "))
+	threads=str(input("Enter number of threads, please... "))
+	f.write('infile="'+infile+'"\n') 
+	f.write('out_by_a="'+out_by_a +'"\n')
+	f.write('out_by_n="'+out_by_n+'"\n')
+	f.write('threads='+threads)
+	f.close()
+else:
+	f = open("/home/natasha/CLionProjects/threads_project/Read.txt", "r")
+	print("It's yours configuration...")
+	for line in f:
+		print(line)	
 number = int(input("How many times do you want to run file: "))
 while number > 0: 
 	subprocess.call("./example")

@@ -1,4 +1,4 @@
-﻿infile="/home/natasha/data.txt"
-out_by_a="/home/natasha/res_a.txt"
-out_by_n="/home/natasha/res_n.txt"
-threads=2
+infile="/home/natasha/data.txt"
+out_by_a="res_1.txt"
+out_by_n="res_2.txt"
+threads=3
