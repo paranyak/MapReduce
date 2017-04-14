@@ -1,10 +1,11 @@
 import subprocess
 import math
+import os
 subprocess.call(["g++", "/home/natasha/CLionProjects/threads_project/example.cpp","-o", "example" ,"-std=c++11", "-pthread"])
 print("Compiled")
 configType = str(input("Do you want to open config file(f) or enter from console(c)? f/c "))
 if configType == "c":
-	f = open("/home/natasha/CLionProjects/threads_project/Read.txt", "w")
+	f = open("cmake-build-debug/Read.txt", "w")
 	infile=str(input("Enter infile, please... "))
 	out_by_a=str(input("Enter outfile by a, please... "))
 	out_by_n=str(input("Enter outfile by n , please... "))
@@ -15,13 +16,14 @@ if configType == "c":
 	f.write('threads='+threads)
 	f.close()
 else:
-	f = open("/home/natasha/CLionProjects/threads_project/Read.txt", "r")
+	f = open("cmake-build-debug/Read.txt", "r")
 	print("It's yours configuration...")
 	for line in f:
 		print(line)	
 number = int(input("How many times do you want to run file: "))
+os.chdir("./cmake-build-debug")
 while number > 0: 
-	subprocess.call("./example")
+	subprocess.call("../example")
 	number -= 1
 
 f= open("./result.txt", "r")

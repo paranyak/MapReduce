@@ -1,4 +1,0 @@
-infile="/home/natasha/data.txt"
-out_by_a="res_1.txt"
-out_by_n="res_2.txt"
-threads=3

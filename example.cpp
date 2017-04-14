@@ -7,6 +7,7 @@
 #include <thread>
 #include <mutex>
 #include <algorithm>
+#include <zconf.h>
 #include "printing_MAP.cpp"
 #include "timing.cpp"
 #include "writing.cpp"
@@ -38,7 +39,7 @@ void reading(){                     //відкривання файлу з да�
     ifstream myfile;
     vector<string> words;
     string word;
-    myfile.open("/home/natasha/CLionProjects/threads_project/Read.txt");    //файл який має три шляхи для файлів і кількість потоків
+    myfile.open("./Read.txt");    //файл який має три шляхи для файлів і кількість потоків
     if (!myfile.is_open()) {
         cerr << "Error" << endl;
     }
@@ -141,7 +142,7 @@ int main()
 
     // записуємо всі значення обрахування часу в файл, ВОНИ НЕ ВИДАЛЯЮТЬСЯ кожного разу
     fstream log;
-    log.open("result.txt", fstream::app);
+    log.open("./result.txt", fstream::app);
     std::chrono::duration<double, std::milli> r_ms = reading_time;
     std::chrono::duration<double, std::milli> w_ms = writing_time;
     std::chrono::duration<double, std::milli> c_ms = counting_time;
