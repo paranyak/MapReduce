@@ -142,6 +142,7 @@ int main()
 
     // записуємо всі значення обрахування часу в файл, ВОНИ НЕ ВИДАЛЯЮТЬСЯ кожного разу
     fstream log;
+
     log.open("./result.txt", fstream::app);
     std::chrono::duration<double, std::milli> r_ms = reading_time;
     std::chrono::duration<double, std::milli> w_ms = writing_time;
