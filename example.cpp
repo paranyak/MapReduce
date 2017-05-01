@@ -12,7 +12,7 @@
 #include "timing.cpp"
 #include "writing.cpp"
 #include "counting.cpp"
-
+#include "callable_example.cpp"
 
 using namespace std;
 int N=0;                            //кількість потоків(потім змінюється відповідно до вказаного)
@@ -94,7 +94,7 @@ int main()
 
     //потоки
    for(id = 0; id < N; id++){
-       my_thread[id] =  thread(counting_words_worker, all_words, starting, ending);
+        my_thread[id] =  thread(callE, all_words, starting, ending);
         starting += step +1;
         if(ending + step > all_words.size()){
             ending = all_words.size();
