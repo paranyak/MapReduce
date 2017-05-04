@@ -20,13 +20,11 @@ map<string, int> counting_words_worker(vector<string> words){
     return localm;
 }
 
-//map<string, int> result (map<string, int> localm) {
-map<string, int> result (const map<string, int> &r) {
+map<string, int> result ( map<string, int> localm) {
 //переробити на попарне злиття і константна меп
-//    mtx.lock();
-    map<string, int> localm = r;
-    for (auto it = *localm.begin(); it != *localm.end(); ++it) m[it->first] += it->second;
-//    mtx.unlock();
+    mtx.lock();
+    for (auto it = localm.begin(); it != localm.end(); ++it) m[it->first] += it->second;
+    mtx.unlock();
     return m;
 }
 
