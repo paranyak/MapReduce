@@ -94,7 +94,11 @@ int main()
 
     //потоки
    for(id = 0; id < N; id++){
-        my_thread[id] =  thread(callE, all_words, starting, ending);
+       vector<string> l;
+       for(long i = starting; i < ending; i++){
+           l.push_back( all_words[i]);
+       }
+        my_thread[id] =  thread(callE, l);
         starting += step +1;
         if(ending + step > all_words.size()){
             ending = all_words.size();
