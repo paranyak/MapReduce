@@ -92,24 +92,25 @@ int main()
 
     auto stage2_start_time = get_current_time_fenced(); //початок підрахунку
 
+    callE(all_words);
     //потоки
-   for(id = 0; id < N; id++){
-       vector<string> l;
-       for(long i = starting; i < ending; i++){
-           l.push_back( all_words[i]);
-       }
-        my_thread[id] =  thread(callE, l);
-        starting += step +1;
-        if(ending + step > all_words.size()){
-            ending = all_words.size();
-        }else{
-            ending = starting + step;
-        }
-
-    }
-    for(id = 0; id < N; id++){
-        my_thread[id].join();
-    }
+//   for(id = 0; id < N; id++){
+//       vector<string> l;
+//       for(long i = starting; i < ending; i++){
+//           l.push_back( all_words[i]);
+//       }
+//        my_thread[id] =  thread(callE, l);
+//        starting += step +1;
+//        if(ending + step > all_words.size()){
+//            ending = all_words.size();
+//        }else{
+//            ending = starting + step;
+//        }
+//
+//    }
+//    for(id = 0; id < N; id++){
+//        my_thread[id].join();
+//    }
 
     auto stage3_start_time = get_current_time_fenced(); //кінець підрахунку
     auto counting_time = stage3_start_time - stage2_start_time;
