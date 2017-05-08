@@ -3,7 +3,7 @@ project(threads_project)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES example.cpp)
+set(SOURCE_FILES callable_example.cpp)
 
 
 add_executable(threads_project ${SOURCE_FILES})
