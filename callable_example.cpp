@@ -3,12 +3,12 @@
 #include <vector>
 #include <math.h>
 #include <assert.h>
-
-//#include <mutex>
+#include <thread>
+#include <mutex>
 
 
 using namespace std;
-
+std::mutex mtx;
 //map<string, int> counting_words_worker(const vector<string>& words){
 //    map<string, int> localm;
 //    for (size_t  i = 0; i != words.size(); ++i) {
@@ -229,21 +229,12 @@ map<string, int> counting_words_worker( vector<string>::const_iterator beg, vect
     for (auto i = beg; i != fin; ++i) {
         ++localm[*i];
     }
-    cout << "Counter:" << endl;
-    for (auto i : localm) {
-        cout << i.first << " - " << i.second << endl;
-    }
     return localm;
 }
 //
 map<string, int> reduce_f( map<string, int> m, const map<string, int>& localm ) {
     for (auto it = localm.begin(); it != localm.end(); ++it)
         m[it->first] += it->second;
-    cout << "\tReducer:" << endl;
-    for (auto i : m){
-        cout << "\t" << i.first << " - " << i.second << endl;
-    }
-
     return m;
 }
 
@@ -262,17 +253,21 @@ auto func_tmpl(I beg, I fin, MF fn1, RF fn2,  N num_of_threads) -> decltype( fn2
     segments.push_back(fin);
     for(auto x: segments)
     {
-        cout << distance(beg, x) << " ";
+        cout << distance(beg, x) << "," ;
     }
-    cout << endl;
+
+    std::vector<std::thread> threads; //потік
 
     for (auto i = segments.begin(); i < segments.end()-1; ++i) {
+        threads.push_back(std::thread(fn1,*i, *(i+1)));     //потік
         auto x = fn1(*i, *(i+1));
+        mtx.lock();                 //поки так зливаємо
         res = fn2(move(res), x);
-        //cout << "res: " << res << endl;
+        mtx.unlock();
     }
 
 
+    for (auto& th : threads) th.join();
     return res;
 }
 
@@ -288,12 +283,17 @@ auto func_tmpl(I beg, I fin, MF fn1, RF fn2,  N num_of_threads) -> decltype( fn2
 int main()
 {
     vector<string> v = {"aaaa", "bbbbb", "ccccc", "ddddd", "aaaa", "eeeee", "wwwwwwwww", "ccccc", "ccccc", "ccccc"};
-    func_tmpl(v.begin(), v.end(), counting_words_worker, reduce_f, 2);
+    cout<<"Words counter" << endl;
+    for (auto i : func_tmpl(v.begin(), v.end(), counting_words_worker, reduce_f, 3)){
+       cout << i.first << " - " << i.second << endl;
+    }
+// func_tmpl(v.begin(), v.end(), counting_words_worker, reduce_f, 4);
+    //cout << func_tmpl(v.begin(), v.end(), counting_words_worker, reduce_f, 4)<< endl;
 
     vector<double> data  ={0, 1, 0, 1, 5, 0.001};
     Iter2Ddouble itr(data);
-
-    cout << func_tmpl(itr, itr.end(), func_wrapper(5), thread_integration, 2) << endl;
+    cout << "Integral" << endl;
+    cout << func_tmpl(itr, itr.end(), func_wrapper(5), thread_integration, 4) << endl;
 
 
 
