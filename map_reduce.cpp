@@ -5,30 +5,47 @@
 #include <assert.h>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
+#include <deque>
 
 
 using namespace std;
-std::mutex mtx;
-//map<string, int> counting_words_worker(const vector<string>& words){
-//    map<string, int> localm;
-//    for (size_t  i = 0; i != words.size(); ++i) {
-//            ++localm[words[i]];
-//    }
-//    return localm;
-//}
-//
-//map<string, int> reduce_f(map<string, int> m, const map<string, int>& localm) {
-//    for (auto it = localm.begin(); it != localm.end(); ++it)
-//        m[it->first] += it->second;
-//
-//        for (auto i : m){
-//        cout << i.first << " - " << i.second << endl;
-//    }
-//
-//    return m;
-//}
-//
+mutex myMutex;
+mutex mx;
+condition_variable cv;
+int num = 0;
+int num_of_threads;
+deque <double> dm;
+
+double reduce_f(double & m, const double &localm ) {
+    m += localm;
+    return m;
+}
+
+void reducer(deque <double> &dm){
+    unique_lock<mutex> uniqueLock(myMutex);
+    while (dm.size() > 1) {
+        double map1 = dm.front();
+        dm.pop_front();
+        double map2 = dm.front();
+        dm.pop_front();
+        uniqueLock.unlock();
+        double map3 = reduce_f(map1, map2);
+        uniqueLock.lock();
+        dm.push_back(map3);
+        cout << "1A"  << " n " << num<<endl;
+    }if (dm.size() == 1 && num == num_of_threads) {
+       cout << dm.front() << endl;
+        cout << "2A" << endl;
+    } else {
+        cv.wait(uniqueLock);
+        cout << "3A" << endl;
+    }
+
+}
+
 double func_calculation(int m, double x1, double x2) {
+
     double sum1 = 0;
     double sum2 = 0;
     double g;
@@ -37,8 +54,8 @@ double func_calculation(int m, double x1, double x2) {
         sum1 += i * cos((i + 1) * x1 + 1);
         sum2 += i * cos((i + 1) * x2 + 1);
     }
-
     g = - sum1 * sum2;
+    //cout << g  << " -g-- "<< endl;
 
     return g;
 }
@@ -168,18 +185,23 @@ struct func_wrapper
 {
     int m;
     func_wrapper(int m_): m(m_){}
-//    double operator()(const point_t& p)
-//    {
-//        return func_calculation(m, p.first, p.second);
-//    }
+
     double operator()(const Iter2Ddouble& itr1, const Iter2Ddouble& itr2)
     {
         double r = 0;
         for(auto i = itr1; i<itr2; ++i) {
             r += func_calculation(m, (*i).first, (*i).second) * itr1.get_pr() * itr1.get_pr();
-            // cout << (*i).first << " " <<  (*i).second << " " << r << endl;
+            {lock_guard<mutex> lg(myMutex);
+            dm.push_back(r); }
         }
+
+        cv.notify_one();
+        num += 1;
+        cv.notify_all();
+        reducer(dm);
+
         return r;
+
     }
 
 };
@@ -200,71 +222,38 @@ double integration(const vector<double>& data ) {
             sum += func_calculation(m, i + pr / 2.0, j + pr / 2.0) * pr * pr;
         }
     }
+    //cout << sum << " " << endl;
     return sum;
 }
 
 double thread_integration(double r, const double &sum) {
-
-    // auto result = integration(x0, x, y0, y, m, pr);
-//    lock_guard<mutex> lg(mx);
     r += sum;
-//    cout << r << endl;
     return r;
 }
 
-//template <class V, class MF, class RF>
-//auto func_tmpl(const V& v, MF fn1, RF fn2) -> decltype( fn2(fn1(v[0]), fn1(v[0])) ) {
-//    // V - масив блоків (векторів)
-//    decltype(func_tmpl(v, fn1, fn2)) res;        // big map<string, int>
-//    for (size_t i = 0; i < v.size(); ++i) {
-//        auto x = fn1(v[i]);        //return small   map<string, int>
-//        res = fn2(move(res), x);
-//    }
-//
-//    return res;
-//}
-//
-map<string, int> counting_words_worker( vector<string>::const_iterator beg, vector<string>::const_iterator  fin ){
-    map<string, int> localm;
-    for (auto i = beg; i != fin; ++i) {
-        ++localm[*i];
-    }
-    return localm;
-}
-//
-map<string, int> reduce_f( map<string, int> m, const map<string, int>& localm ) {
-    for (auto it = localm.begin(); it != localm.end(); ++it)
-        m[it->first] += it->second;
-    return m;
-}
 
-template <class MF, class RF, class I, class N>
-auto func_tmpl(I beg, I fin, MF fn1, RF fn2,  N num_of_threads) -> decltype( fn2(fn1(beg, fin), fn1(beg, fin)) ) {
-    // v - вектор усіх слів
-    // beg = v.begin()
-    // fin = v.end()
-    decltype(func_tmpl(beg, fin, fn1, fn2, num_of_threads)) res;        // big map<string, int>
+
+template <class MF, class RF, class I, class N, class D >
+auto func_tmpl(I beg, I fin, MF fn1, D d, RF fn2,  N num_of_threads) -> decltype( fn2(fn1(beg, fin), fn1(beg, fin)) ) {
+
+    decltype(func_tmpl(beg, fin, fn1, d, fn2, num_of_threads)) res;        // big map<string, int>
     size_t delta = (fin - beg) / num_of_threads;
-    //    auto i = begin, j = begin + delta;
     vector<I> segments;
     for (auto i = beg; i < fin - delta; i += delta) {
         segments.push_back(i);
     }
     segments.push_back(fin);
-    for(auto x: segments)
-    {
-        cout << distance(beg, x) << "," ;
-    }
+//    for(auto x: segments)
+//    {
+//        cout << distance(beg, x) << "," ;
+//    }
 
-    std::vector<std::thread> threads; //потік
+    vector<thread> threads; //потік
 
     for (auto i = segments.begin(); i < segments.end()-1; ++i) {
-        threads.push_back(std::thread(fn1,*i, *(i+1)));     //потік
+        threads.push_back(std::thread(fn1,*i, *(i+1)));
         auto x = fn1(*i, *(i+1));
-        //закинути в чергу, коли звільниились ресурси, вик наступна функція
-        mtx.lock();                 //поки так зливаємо
-        res = fn2(move(res), x);
-        mtx.unlock();
+        cout << x << endl;
     }
 
 
@@ -272,60 +261,13 @@ auto func_tmpl(I beg, I fin, MF fn1, RF fn2,  N num_of_threads) -> decltype( fn2
     return res;
 }
 
-
-
-
-//void callD2(const vector<string> &words){
-//    cout << words.size() << endl;
-//    //cout << words.begin() << endl;
-//    func_tmpl(words.begin(), words.end(), counting_words_worker, reduce_f, 4);
-//}
-
-int main()
-{
-    vector<string> v = {"aaaa", "bbbbb", "ccccc", "ddddd", "aaaa", "eeeee", "wwwwwwwww", "ccccc", "ccccc", "ccccc"};
-    cout<<"Words counter" << endl;
-    for (auto i : func_tmpl(v.begin(), v.end(), counting_words_worker, reduce_f, 3)){
-        cout << i.first << " - " << i.second << endl;
-    }
-// func_tmpl(v.begin(), v.end(), counting_words_worker, reduce_f, 4);
-    //cout << func_tmpl(v.begin(), v.end(), counting_words_worker, reduce_f, 4)<< endl;
-
-    vector<double> data  ={0, 1, 0, 1, 5, 0.001};
+int main() {
+    vector<double> data = {0, 1, 0, 1, 5, 0.001};
     Iter2Ddouble itr(data);
     cout << "Integral" << endl;
-    cout << func_tmpl(itr, itr.end(), func_wrapper(5), thread_integration, 4) << endl;
+    num_of_threads = 4;
+    deque <double> dm;
+    cout << func_tmpl(itr, itr.end(), func_wrapper(5), dm,  thread_integration, num_of_threads) << endl;
 
-
-
-    //    map<string, int> mpp;
-    //    auto s1 = counting_words_worker(v, 0, 5);
-    //    cout << ".................." << endl;
-    //    auto s2 = counting_words_worker(v, 5, 8);
-    //    mpp = move(reduce_f(mpp, s1));
-    //    cout << "last reduce: \t";
-    //    mpp = move(reduce_f(mpp, s2));
-    //    cout << "++++++++++++++++++" << endl;
-    //    for (auto i : mpp)
-    //        cout << i.first << "-- " << i.second << endl;
-
-
-
-    //    vector<string> v1 = {"asdf", "wert", "aaa", "qwerty"};
-    //    vector<string> v2 = {"asdf", "poiuy", "qwewrtdxfb", "qwerty"};
-    //    vector<vector<string>> v3;
-    //    v3.push_back(v1);
-    //    v3.push_back(v2);
-    //    callD(v3);
-    //    vector<double> data = {0, 1, 0, 1, 5, 0.001};
-    //    vector<vector<double>> v4;
-    //    v4.push_back(data);
-    //    callI(v4);
 
 }
-
-// template <class T>  T reduce_f(T m, const T& localm)
-// func_tmpl(words, counting_words_worker, reduce_f<map<string, int>>);
-
-//U map(T &t);
-//V reduce(T &result, const U &intermediate)

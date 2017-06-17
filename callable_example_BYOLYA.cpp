@@ -16,7 +16,7 @@ condition_variable cv;
 
 
 int num = 0;
-int num_of_threads = 0;
+//int num_of_threads = 0;
 //
 
 void printMap(const map<string, int> &m) {
@@ -33,30 +33,29 @@ map<string, int> reduce_f( map<string, int> m, const map<string, int>& localm ) 
         m[it->first] += it->second;
     return m;
 }
-template <class Dd, class RF>
-void reducer(deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
+
+deque <map<string, int>>  reducer(int num_of_threads, deque <map<string, int>> &dm){
     unique_lock<mutex> uniqueLock(myMutex);
     while (dm.size() > 1) {
-        Dd map1 = dm.front();
+        map<string, int> map1 = dm.front();
         dm.pop_front();
-        Dd map2 = dm.front();
+        map<string, int> map2 = dm.front();
         dm.pop_front();
         uniqueLock.unlock();
-        Dd map3 = (*fn2)(map1, map2);
-
+        map<string, int> map3 = reduce_f(map1, map2);
         uniqueLock.lock();
         dm.push_back(map3);
-//        cout << "1" << endl;
+        cout << "1" << endl;
     }if (dm.size() == 1 && num == num_of_threads) {
+        cout << "2" << endl;
         printMap(dm.front());
-//        cout << "2" << endl;
     } else {
-//        cout << "3" << endl;
+        cout << "3" << endl;
         cv.wait(uniqueLock);
     }
-
+    return dm;
 }
-map<string, int> counting_words_worker(const vector<string>::const_iterator &beg, const vector<string>::const_iterator &fin , deque <map<string, int>> & dm, map<string, int> (*reduce_f)( map<string, int> , const map<string, int> &)){
+map<string, int> counting_words_worker(const vector<string>::const_iterator &beg, const vector<string>::const_iterator &fin , deque <map<string, int>> & dm){
     map<string, int> localm;
     for (auto i = beg; i != fin; ++i) {
         ++localm[*i];
@@ -68,14 +67,14 @@ map<string, int> counting_words_worker(const vector<string>::const_iterator &beg
     cv.notify_one();
     cv.notify_all();
     num += 1;
-    reducer(dm, reduce_f);
+    //reducer(dm);
     return localm;
 }
 
 
 
 template <class MF, class RF, class I, class N, class D>
-auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltype( fn1(beg, fin, d, fn2))  {
+auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltype( fn2(num_of_threads, ref(d)) ) {
     decltype(func_tmpl(beg, fin, fn1, d,  fn2, num_of_threads)) res;        // big map<string, int>
 
     size_t delta = (fin - beg) / num_of_threads;
@@ -90,11 +89,12 @@ auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltyp
 
     thread myThreads [num_of_threads];
     for (auto i = segments.begin(); i < segments.end()-1; ++i) {
-        myThreads[i - segments.begin()] = thread(fn1,*i, *(i+1), ref(d), fn2);
-
+        myThreads[i - segments.begin()] = thread(fn1,*i, *(i+1), ref(d));
+        fn2(num_of_threads, ref(d));
     }
 
     for (auto& th : myThreads) th.join();
+    res = fn2(num_of_threads, ref(d));
     return res;
 }
 
@@ -107,10 +107,9 @@ int main()
 {
     vector<string> v = {"aaaa", "hhhhh", "bbbbb", "ccccc", "ddddd", "aaaa", "eeeee", "wwwwwwwww", "ccccc", "ccccc", "ccccc"};
     cout<<"Words counter" << endl;
-    num_of_threads = 3;
+    int num_of_threads = 3;
     deque <map<string, int>> dm;
-    func_tmpl(v.begin(), v.end(), counting_words_worker, dm, reduce_f, num_of_threads);
-
+    func_tmpl(v.begin(), v.end(), counting_words_worker, dm, reducer, num_of_threads);
 }
 
 
