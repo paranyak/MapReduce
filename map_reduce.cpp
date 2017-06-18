@@ -7,6 +7,9 @@
 #include <mutex>
 #include <deque>
 #include <condition_variable>
+#include <fstream>
+
+#include "timing.cpp"
 
 
 using namespace std;
@@ -41,7 +44,11 @@ template <class Dd, class RF>
 Dd reducer_univ(int num_of_threads, deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
     unique_lock<mutex> uniqueLock(myMutex);
     cout << dm.size() << " <- size of deque " << num << " <-- threads finished :) "<<endl;
+    std::thread::id this_id = std::this_thread::get_id();
+    std::cout << "thread in reduce " << this_id << "\n";
     while (dm.size() > 1) {
+        std::thread::id this_id_1 = std::this_thread::get_id();
+        std::cout << "thread in adding " << this_id_1 << "\n";
         Dd map1 = dm.front();
         dm.pop_front();
         Dd map2 = dm.front();
@@ -50,13 +57,17 @@ Dd reducer_univ(int num_of_threads, deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
         Dd map3 = (*fn2)(map1, map2);
         uniqueLock.lock();
         dm.push_back(map3);
-        cout << "1" << endl;
-    } cout << dm.size() << " <-size" << endl;
+        cout << "adding state" << endl;
+    }
     if (dm.size() == 1 && num == num_of_threads) {
-        cout << dm.front() << endl;
-        cout << "2" << endl;
+        std::thread::id this_id_2 = std::this_thread::get_id();
+        std::cout << "thread in end " << this_id_2 << "\n";
+        //cout << dm.front() << endl;
+        cout << " end :) " << endl;
     } else {
-        cout << "3" << endl;
+        std::thread::id this_id_3 = std::this_thread::get_id();
+        std::cout << "thread in waiting " << this_id_3 << "\n";
+        cout << "waiting state  " << endl;
         cv.wait(uniqueLock);
     }
 
@@ -205,7 +216,7 @@ struct func_wrapper
         num += 1;
         cout << "finished  " << num << endl;
         std::thread::id this_id = std::this_thread::get_id();
-        std::cout << "thread " << this_id << "\n";
+        std::cout << "thread which finished " << this_id << "\n";
         cv.notify_one();
         cv.notify_all();
         reducer_univ(4, d, thread_integration);
@@ -237,36 +248,37 @@ Dd func_tmpl(I beg, I fin, MF fn1, deque<Dd> &d, RF fn2, N num_of_threads) {
     segments.push_back(fin);
 
     thread myThreads [num_of_threads];
-    for (auto i = segments.begin(); i < segments.end()-1; ++i) {
+    for (auto i = segments.begin(); i < segments.end(); ++i) {
+//        for (auto i = segments.begin(); i < segments.end()-1; ++i) {      НЕ ВИДАЛЯТИ, БО ДЕКОЛИ (ЗАЛЕЖНО ВІД ПОДІЛУ) ТРЕБА ТАК
         myThreads[i - segments.begin()] = thread(fn1, *i, *(i+1), ref(d));
         cout << "i: "<<i - segments.begin() << endl;
-        //reducer_univ(num_of_threads, d, fn2);
     }
 
     for (auto& th : myThreads){
         if (th.joinable())
-        {th.join();
-        std::thread::id this_id = std::this_thread::get_id();
-        std::cout << "thread " << this_id << " ...\n";}
+        {th.join(); }
     }
-    res = reducer_univ(num_of_threads, d, fn2);
+    res = d.front();
     return res;
 }
 
 
 int main()
 {
-//    deque <map<string, int>> dm;
-//    vector<string> v = {"aaaa", "bbbbb", "ccccc", "ddddd", "aaaa", "eeeee", "wwwwwwwww", "ccccc", "ccccc", "ccccc"};
-//    cout<< "Words counter" << endl;
-//    int num_of_threads = 3;
-//    map<string, int> m = func_tmpl(v.begin(), v.end(), counting_words_worker, dm, reduce_f, num_of_threads);
-//    printMap(m);
+    auto stage1_start_time = get_current_time_fenced();
 
-    vector<double> data = {0, 2, 0, 4, 5, 0.001};
+
+    vector<double> data = {0, 8, 0, 8, 5, 0.001};
     deque<double> d;
     Iter2Ddouble itr(data);
     cout << "Integral" << endl;
     cout << func_tmpl(itr, itr.end(), func_wrapper(5, d), d, thread_integration, 4) << endl;
-
+//    auto finish_time = get_current_time_fenced();
+//    auto reading_time = finish_time - stage1_start_time;
+//    fstream log;
+//
+//    log.open("./result.txt", fstream::app);
+//    std::chrono::duration<double, std::milli> r_ms = reading_time;
+//    log << r_ms.count() << "\n";
+//    log.close();
 }

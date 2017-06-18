@@ -1,5 +1,6 @@
 #include <chrono>
 #include <atomic>
+using namespace std;
 
 inline std::chrono::high_resolution_clock::time_point get_current_time_fenced()
 {

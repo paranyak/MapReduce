@@ -3,7 +3,8 @@ project(threads_project)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES map_reduce.cpp)
+set(SOURCE_FILES callable_example.cpp timing.cpp)
+#set(SOURCE_FILES map_reduce.cpp timing.cpp)
 
 
 add_executable(threads_project ${SOURCE_FILES})

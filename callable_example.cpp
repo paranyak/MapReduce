@@ -7,6 +7,8 @@
 #include <mutex>
 #include <deque>
 #include <condition_variable>
+#include <fstream>
+#include "timing.cpp"
 
 
 using namespace std;
@@ -18,6 +20,46 @@ condition_variable cv;
 int num = 0;
 int num_of_threads = 0;
 //
+
+vector<string> reading(int &N){                     //відкривання файлу з даними, виділення шляхів до файлів і кількості потоків
+    ifstream myfile;
+    vector<string> words;
+    string word;
+    myfile.open("Read.txt");    //файл який має три шляхи для файлів і кількість потоків
+    if (!myfile.is_open()) {
+        cerr << "Error" << endl;
+    }
+    while (myfile >> word) {        //додаємо рядок без =
+        words.push_back(word);
+    }
+    string fileO;
+    for (int i = 0; i < words.size(); ++i) {     //прінт всіх
+        cout << words[i] << ' ';
+        if( words[i].find("infile=") != std::string::npos ){
+            size_t pos = words[i].find("infile=");
+            fileO = words[i].substr(pos+8);
+            fileO = fileO.substr(0, fileO.length()-1);
+
+        }
+        else if( words[i].find("threads=") != std::string::npos){
+            size_t pos = words[i].find("threads=");
+            N = atoi(words[i].substr(pos+8).c_str());
+        }
+    }
+    ifstream myfile1;
+    vector<string> words_all;
+    string word_all;
+    myfile1.open(fileO);
+    if (!myfile.is_open()) {
+        cerr << "Error open data" << endl;
+    }
+    while (myfile1 >> word_all){
+        words_all.push_back(word_all);
+    }
+
+    return words_all;
+}
+
 
 void printMap(const map<string, int> &m) {
     for (auto &elem : m) {
@@ -33,6 +75,7 @@ map<string, int> reduce_f( map<string, int> m, const map<string, int>& localm ) 
         m[it->first] += it->second;
     return m;
 }
+
 template <class Dd, class RF>
 void reducer(deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
     unique_lock<mutex> uniqueLock(myMutex);
@@ -43,15 +86,11 @@ void reducer(deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
         dm.pop_front();
         uniqueLock.unlock();
         Dd map3 = (*fn2)(map1, map2);
-
         uniqueLock.lock();
         dm.push_back(map3);
-//        cout << "1" << endl;
     }if (dm.size() == 1 && num == num_of_threads) {
         printMap(dm.front());
-//        cout << "2" << endl;
     } else {
-//        cout << "3" << endl;
         cv.wait(uniqueLock);
     }
 
@@ -105,12 +144,21 @@ auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltyp
 
 int main()
 {
-    vector<string> v = {"aaaa", "hhhhh", "bbbbb", "ccccc", "ddddd", "aaaa", "eeeee", "wwwwwwwww", "ccccc", "ccccc", "ccccc"};
+   // int num_of_threads;
+    auto stage1_start_time = get_current_time_fenced();
+
+    vector<string> v = reading(num_of_threads);//{"aaaa", "hhhhh", "bbbbb", "ccccc", "ddddd", "aaaa", "eeeee", "wwwwwwwww", "ccccc", "ccccc", "ccccc"};
     cout<<"Words counter" << endl;
-    num_of_threads = 3;
     deque <map<string, int>> dm;
     func_tmpl(v.begin(), v.end(), counting_words_worker, dm, reduce_f, num_of_threads);
+    auto finish_time = get_current_time_fenced();
+    auto reading_time = finish_time - stage1_start_time;
+    fstream log;
 
+    log.open("./result.txt", fstream::app);
+    std::chrono::duration<double, std::milli> r_ms = reading_time;
+    log << r_ms.count() << "\n";
+    log.close();
 }
 
 
