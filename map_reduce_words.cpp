@@ -17,9 +17,7 @@ mutex mx;
 condition_variable cv;
 
 
-int num = 0;
-int num_of_threads = 0;
-//
+
 
 vector<string> reading(int &N){                     //відкривання файлу з даними, виділення шляхів до файлів і кількості потоків
     ifstream myfile;
@@ -69,7 +67,7 @@ void printMap(const map<string, int> &m) {
 
 //
 
-map<string, int> reduce_f( map<string, int> m, const map<string, int>& localm ) {
+map<string, int> reduce_f( map<string, int> &m, const map<string, int>& localm ) {
 
     for (auto it = localm.begin(); it != localm.end(); ++it)
         m[it->first] += it->second;
@@ -77,7 +75,7 @@ map<string, int> reduce_f( map<string, int> m, const map<string, int>& localm ) 
 }
 
 template <class Dd, class RF>
-void reducer(deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
+void reducer(int num_of_threads, deque <Dd> &dm, RF (*fn2)(Dd &, const Dd &), int num){
     unique_lock<mutex> uniqueLock(myMutex);
     while (dm.size() > 1) {
         Dd map1 = dm.front();
@@ -88,14 +86,17 @@ void reducer(deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
         Dd map3 = (*fn2)(map1, map2);
         uniqueLock.lock();
         dm.push_back(map3);
-    }if (dm.size() == 1 && num == num_of_threads) {
-        printMap(dm.front());
-    } else {
+    }if (dm.size() != 1 && num != num_of_threads) {
+//        cout << "here" << endl;
+//        printMap(dm.front());
+//    } else {
         cv.wait(uniqueLock);
-    }
+    }else{
+    printMap(dm.front());
+    return;}
 
 }
-map<string, int> counting_words_worker(const vector<string>::const_iterator &beg, const vector<string>::const_iterator &fin , deque <map<string, int>> & dm, map<string, int> (*reduce_f)( map<string, int> , const map<string, int> &)){
+map<string, int> counting_words_worker(const vector<string>::const_iterator &beg, const vector<string>::const_iterator &fin , deque <map<string, int>> & dm, map<string, int> (*reduce_f)( map<string, int> &, const map<string, int> &),int num_of_threads,  int &num){
     map<string, int> localm;
     for (auto i = beg; i != fin; ++i) {
         ++localm[*i];
@@ -103,19 +104,21 @@ map<string, int> counting_words_worker(const vector<string>::const_iterator &beg
     {
         lock_guard<mutex> lg(myMutex);
         dm.push_back(localm);
+        num  +=1;
     }
     cv.notify_one();
     cv.notify_all();
-    num += 1;
-    reducer(dm, reduce_f);
+
+    reducer(num_of_threads, dm, reduce_f, num);
     return localm;
 }
 
 
 
-template <class MF, class RF, class I, class N, class D>
-auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltype( fn1(beg, fin, d, fn2))  {
-    decltype(func_tmpl(beg, fin, fn1, d,  fn2, num_of_threads)) res;        // big map<string, int>
+template <class MF, class RF, class I, class N, class D, class NM>
+
+auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads, NM nm) -> decltype( fn1(beg, fin, d, fn2, num_of_threads, ref(nm)))  {
+    decltype(func_tmpl(beg, fin, fn1, d,  fn2, num_of_threads, nm)) res;        // big map<string, int>
 
     size_t delta = (fin - beg) / num_of_threads;
     vector<I> segments;
@@ -124,13 +127,9 @@ auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltyp
     }
     segments.push_back(fin);
 
-    /////////////////////
-
-
     thread myThreads [num_of_threads];
     for (auto i = segments.begin(); i < segments.end()-1; ++i) {
-        myThreads[i - segments.begin()] = thread(fn1,*i, *(i+1), ref(d), fn2);
-
+        myThreads[i - segments.begin()] = thread(fn1,*i, *(i+1), ref(d), fn2, num_of_threads, ref(nm));
     }
 
     for (auto& th : myThreads) th.join();
@@ -145,20 +144,21 @@ auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltyp
 int main()
 {
    // int num_of_threads;
-    auto stage1_start_time = get_current_time_fenced();
-
+//    auto stage1_start_time = get_current_time_fenced();
+    int num_of_threads = 2;
     vector<string> v = reading(num_of_threads);//{"aaaa", "hhhhh", "bbbbb", "ccccc", "ddddd", "aaaa", "eeeee", "wwwwwwwww", "ccccc", "ccccc", "ccccc"};
     cout<<"Words counter" << endl;
     deque <map<string, int>> dm;
-    func_tmpl(v.begin(), v.end(), counting_words_worker, dm, reduce_f, num_of_threads);
-    auto finish_time = get_current_time_fenced();
-    auto reading_time = finish_time - stage1_start_time;
-    fstream log;
-
-    log.open("./result.txt", fstream::app);
-    std::chrono::duration<double, std::milli> r_ms = reading_time;
-    log << r_ms.count() << "\n";
-    log.close();
+    int num = 0;
+    func_tmpl(v.begin(), v.end(), counting_words_worker, dm, reduce_f, num_of_threads, ref(num));
+//    auto finish_time = get_current_time_fenced();
+//    auto reading_time = finish_time - stage1_start_time;
+//    fstream log;
+//
+//    log.open("./result.txt", fstream::app);
+//    std::chrono::duration<double, std::milli> r_ms = reading_time;
+//    log << r_ms.count() << "\n";
+//    log.close();
 }
 
 

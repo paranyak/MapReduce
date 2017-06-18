@@ -16,7 +16,6 @@ using namespace std;
 mutex myMutex;
 condition_variable cv;
 
-int num = 0;
 
 
 double func_calculation(int m, double x1, double x2) {
@@ -31,7 +30,7 @@ double func_calculation(int m, double x1, double x2) {
     g = - sum1 * sum2;
     return g;
 }
-double thread_integration(double r, const double &sum) {
+double thread_integration(double &r, const double &sum) {
     r += sum;
     return r;
 }
@@ -41,14 +40,14 @@ double thread_integration(double r, const double &sum) {
 
 
 template <class Dd, class RF>
-Dd reducer_univ(int num_of_threads, deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
+Dd reducer_univ(int num_of_threads, deque <Dd> &dm, RF (*fn2)(Dd &, const Dd &), int num){
     unique_lock<mutex> uniqueLock(myMutex);
-    cout << dm.size() << " <- size of deque " << num << " <-- threads finished :) "<<endl;
-    std::thread::id this_id = std::this_thread::get_id();
-    std::cout << "thread in reduce " << this_id << "\n";
+//    cout << dm.size() << " <- size of deque " << num << " <-- threads finished :) "<<endl;
+//    std::thread::id this_id = std::this_thread::get_id();
+//    std::cout << "thread in reduce " << this_id << "\n";
     while (dm.size() > 1) {
-        std::thread::id this_id_1 = std::this_thread::get_id();
-        std::cout << "thread in adding " << this_id_1 << "\n";
+//        std::thread::id this_id_1 = std::this_thread::get_id();
+//        std::cout << "thread in adding " << this_id_1 << "\n";
         Dd map1 = dm.front();
         dm.pop_front();
         Dd map2 = dm.front();
@@ -57,17 +56,16 @@ Dd reducer_univ(int num_of_threads, deque <Dd> &dm, RF (*fn2)(Dd, const Dd &)){
         Dd map3 = (*fn2)(map1, map2);
         uniqueLock.lock();
         dm.push_back(map3);
-        cout << "adding state" << endl;
+//        cout << "adding state" << endl;
     }
     if (dm.size() == 1 && num == num_of_threads) {
         std::thread::id this_id_2 = std::this_thread::get_id();
-        std::cout << "thread in end " << this_id_2 << "\n";
-        //cout << dm.front() << endl;
-        cout << " end :) " << endl;
+//        std::cout << "thread in end " << this_id_2 << "\n";
+//        cout << " end :) " << endl;
     } else {
-        std::thread::id this_id_3 = std::this_thread::get_id();
-        std::cout << "thread in waiting " << this_id_3 << "\n";
-        cout << "waiting state  " << endl;
+//        std::thread::id this_id_3 = std::this_thread::get_id();
+//        std::cout << "thread in waiting " << this_id_3 << "\n";
+//        cout << "waiting state  " << endl;
         cv.wait(uniqueLock);
     }
 
@@ -197,29 +195,27 @@ struct func_wrapper
 {
     int m;
     deque<double> d;
-    func_wrapper(int m_, deque<double> d_): m(m_), d(d_){};
-//    double operator()(const point_t& p)
-//    {
-//        return func_calculation(m, p.first, p.second);
-//    }
-    double operator()(const Iter2Ddouble& itr1, const Iter2Ddouble& itr2,  deque<double>& d)
+    int n;
+    int num;
+    func_wrapper(int m_, deque<double> d_, int n_, int num_): m(m_), d(d_), n(n_) , num(num_){};
+
+    double operator()(const Iter2Ddouble& itr1, const Iter2Ddouble& itr2,  deque<double>& d, int n, int &num)
     {
-        cout <<"here wrapper" << endl;
         double r = 0;
         for(auto i = itr1; i <itr2; ++i) {
             r += func_calculation(m, (*i).first, (*i).second) * itr1.get_pr() * itr1.get_pr();
         }
-        cout << "ended " << r << endl;
         {lock_guard<mutex> lg(myMutex);
             d.push_back(r);
+            num = num +1;
         }
-        num += 1;
-        cout << "finished  " << num << endl;
-        std::thread::id this_id = std::this_thread::get_id();
-        std::cout << "thread which finished " << this_id << "\n";
+
+//        cout << num << "-" << endl;
+//        std::thread::id this_id = std::this_thread::get_id();
+//        std::cout << "thread which finished " << this_id << "\n";
         cv.notify_one();
         cv.notify_all();
-        reducer_univ(4, d, thread_integration);
+        reducer_univ(n, d, thread_integration, num);
         return r;
     }
 
@@ -248,10 +244,11 @@ Dd func_tmpl(I beg, I fin, MF fn1, deque<Dd> &d, RF fn2, N num_of_threads) {
     segments.push_back(fin);
 
     thread myThreads [num_of_threads];
+    int num = 0;
     for (auto i = segments.begin(); i < segments.end(); ++i) {
 //        for (auto i = segments.begin(); i < segments.end()-1; ++i) {      НЕ ВИДАЛЯТИ, БО ДЕКОЛИ (ЗАЛЕЖНО ВІД ПОДІЛУ) ТРЕБА ТАК
-        myThreads[i - segments.begin()] = thread(fn1, *i, *(i+1), ref(d));
-        cout << "i: "<<i - segments.begin() << endl;
+        myThreads[i - segments.begin()] = thread(fn1, *i, *(i+1), ref(d), num_of_threads, ref(num));
+//        cout << "i: "<<i - segments.begin() << endl;
     }
 
     for (auto& th : myThreads){
@@ -265,14 +262,16 @@ Dd func_tmpl(I beg, I fin, MF fn1, deque<Dd> &d, RF fn2, N num_of_threads) {
 
 int main()
 {
-    auto stage1_start_time = get_current_time_fenced();
+    //auto stage1_start_time = get_current_time_fenced();
 
 
-    vector<double> data = {0, 8, 0, 8, 5, 0.001};
+    vector<double> data = {0, 1, 0, 1, 5, 0.001};
     deque<double> d;
     Iter2Ddouble itr(data);
+    int num = 0;
+    int n;
     cout << "Integral" << endl;
-    cout << func_tmpl(itr, itr.end(), func_wrapper(5, d), d, thread_integration, 4) << endl;
+    cout << func_tmpl(itr, itr.end(), func_wrapper(5, d, n, num), d, thread_integration, 4) << endl;
 //    auto finish_time = get_current_time_fenced();
 //    auto reading_time = finish_time - stage1_start_time;
 //    fstream log;
