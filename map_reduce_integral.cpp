@@ -8,8 +8,8 @@
 #include <deque>
 #include <condition_variable>
 #include <fstream>
-
-#include "timing.cpp"
+#include "map_reduce_words.h"
+//#include "timing.cpp"
 
 
 using namespace std;
@@ -245,7 +245,7 @@ Dd func_tmpl(I beg, I fin, MF fn1, deque<Dd> &d, RF fn2, N num_of_threads) {
 
     thread myThreads [num_of_threads];
     int num = 0;
-    for (auto i = segments.begin(); i < segments.end(); ++i) {
+    for (auto i = segments.begin(); i < segments.end()-1; ++i) {
 //        for (auto i = segments.begin(); i < segments.end()-1; ++i) {      НЕ ВИДАЛЯТИ, БО ДЕКОЛИ (ЗАЛЕЖНО ВІД ПОДІЛУ) ТРЕБА ТАК
         myThreads[i - segments.begin()] = thread(fn1, *i, *(i+1), ref(d), num_of_threads, ref(num));
 //        cout << "i: "<<i - segments.begin() << endl;
@@ -265,7 +265,7 @@ int main()
     //auto stage1_start_time = get_current_time_fenced();
 
 
-    vector<double> data = {0, 1, 0, 1, 5, 0.001};
+    vector<double> data = {0, 4, 0, 4, 5, 0.001};
     deque<double> d;
     Iter2Ddouble itr(data);
     int num = 0;

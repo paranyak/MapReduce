@@ -12,7 +12,7 @@
 #include "timing.cpp"
 #include "writing.cpp"
 #include "counting.cpp"
-#include "callable_example.cpp"
+#include "map_reduce_words.cpp"
 
 using namespace std;
 int N=0;                            //кількість потоків(потім змінюється відповідно до вказаного)

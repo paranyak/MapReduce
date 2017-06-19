@@ -8,7 +8,7 @@
 #include <deque>
 #include <condition_variable>
 #include <fstream>
-
+#include "timing.cpp"
 
 using namespace std;
 mutex myMutex;
@@ -85,12 +85,9 @@ deque <map<string, int>>  reducer(int num_of_threads, deque <map<string, int>> &
         map<string, int> map3 = reduce_f(map1, map2);
         uniqueLock.lock();
         dm.push_back(map3);
-       // cout << "1" << endl;
     }if (dm.size() == 1 && num == num_of_threads) {
-        //cout << "2" << endl;
         printMap(dm.front());
     } else {
-        //cout << "3" << endl;
         cv.wait(uniqueLock);
     }
     return dm;
@@ -115,7 +112,7 @@ map<string, int> counting_words_worker(const vector<string>::const_iterator &beg
 
 template <class MF, class RF, class I, class N, class D>
 auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltype( fn2(num_of_threads, ref(d)) ) {
-    decltype(func_tmpl(beg, fin, fn1, d,  fn2, num_of_threads)) res;        // big map<string, int>
+    decltype(func_tmpl(beg, fin, fn1, d,  fn2, num_of_threads)) res;
 
     size_t delta = (fin - beg) / num_of_threads;
     vector<I> segments;
@@ -123,9 +120,6 @@ auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltyp
         segments.push_back(i);
     }
     segments.push_back(fin);
-
-    /////////////////////
-
 
     thread myThreads [num_of_threads];
     for (auto i = segments.begin(); i < segments.end()-1; ++i) {
@@ -145,11 +139,17 @@ auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads) -> decltyp
 
 int main()
 {
+    auto stage1_start_time = get_current_time_fenced();
+
     int num_of_threads = 3;
     vector<string> v = reading(num_of_threads);//{"aaaa", "hhhhh", "bbbbb", "ccccc", "ddddd", "aaaa", "eeeee", "wwwwwwwww", "ccccc", "ccccc", "ccccc"};
     cout<<"Words counter" << endl;
     deque <map<string, int>> dm;
     func_tmpl(v.begin(), v.end(), counting_words_worker, dm, reducer, num_of_threads);
+    auto finish_time = get_current_time_fenced();
+    auto reading_time = finish_time - stage1_start_time;
+    std::chrono::duration<double, std::milli> r_ms = reading_time;
+    cout<< r_ms.count();
 }
 
 

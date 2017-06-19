@@ -8,8 +8,8 @@
 #include <deque>
 #include <condition_variable>
 #include <fstream>
-#include "timing.cpp"
-
+//#include "timing.cpp"
+#include "map_reduce_words.h"
 
 using namespace std;
 mutex myMutex;
@@ -118,7 +118,7 @@ map<string, int> counting_words_worker(const vector<string>::const_iterator &beg
 template <class MF, class RF, class I, class N, class D, class NM>
 
 auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads, NM nm) -> decltype( fn1(beg, fin, d, fn2, num_of_threads, ref(nm)))  {
-    decltype(func_tmpl(beg, fin, fn1, d,  fn2, num_of_threads, nm)) res;        // big map<string, int>
+    decltype(func_tmpl(beg, fin, fn1, d,  fn2, num_of_threads, nm)) res;
 
     size_t delta = (fin - beg) / num_of_threads;
     vector<I> segments;
@@ -132,7 +132,9 @@ auto func_tmpl(I beg, I fin, MF fn1, D d,  RF fn2,  N num_of_threads, NM nm) -> 
         myThreads[i - segments.begin()] = thread(fn1,*i, *(i+1), ref(d), fn2, num_of_threads, ref(nm));
     }
 
-    for (auto& th : myThreads) th.join();
+    for (auto& th : myThreads) {
+        if(th.joinable()){
+        th.join();}}
     return res;
 }
 
