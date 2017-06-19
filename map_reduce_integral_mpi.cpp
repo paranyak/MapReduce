@@ -27,7 +27,7 @@ using namespace std;
 mutex myMutex;
 condition_variable cv;
 
-int commsize=0, rankk=0, len=0;
+int commsize = 0, rankk = 0, len = 0;
 char procname[MPI_MAX_PROCESSOR_NAME];
 
 double func_calculation(int m, double x1, double x2) {
@@ -223,6 +223,7 @@ Dd func_tmpl(I beg, I fin, MF fn1, deque<Dd> &d, RF fn2, N num_of_threads) {
 
     Dd res;
     size_t delta = (fin - beg) / num_of_threads;
+
     vector<I> segments;
     for (auto i = beg; i < fin - delta; i += delta) {
         segments.push_back(i);
@@ -232,28 +233,46 @@ Dd func_tmpl(I beg, I fin, MF fn1, deque<Dd> &d, RF fn2, N num_of_threads) {
     thread myThreads[num_of_threads];
     int num = 0;
     double result = 0;
-    double from_to[] = {segments[0], segments[1], commsize, num};
     if (rankk == 0) {
-        double from_to[] = {segments[0], segments[1], commsize, num};
+        int from_to[] = {0, 1, commsize, num};
         for (int i = 1; i < commsize - 1; ++i) {
-            MPI_Send(from_to, 4, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
-            from_to[0] = segments[i];
-            from_to[1] = segments[i + 1];
+            MPI_Send(from_to, 4, MPI_INTEGER, i, 0, MPI_COMM_WORLD);
+
+            from_to[0] = i;
+            from_to[1] = i;
         }
-        result = fn1(ref(from_to[0]), ref(from_to[1]), from_to[2], ref(from_to[3]));
+        int k = 0;
+        for (auto i = segments.begin(); i < segments.end() - 1; ++i) {
+            if (k != from_to[0])continue;
+            result = fn1(*i, *(i + 1), num_of_threads, ref(num));
+            k++;
+        }
+
+//        result = fn1(*segments.begin(), *segments.end(), num_of_threads, ref(num));       //DEBUG
+//        cout << result << endl;
+//        result = fn1(*segments.at(from_to[0]), *(segments.at(from_to[1]) + 1), from_to[2], from_to[3]);
 
         for (int i = 1; i < commsize; ++i) {
-            double recieved;
+            double recieved[1];
             MPI_Recv(&recieved, 1, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-            result += recieved;
+            result += recieved[0];
 
         }
-        cout<<"Result: " << result << endl;
+        cout << "Result: " << result << endl;
     } else {
-        MPI_Recv(from_to, 4, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        result = fn1(ref(from_to[0]), ref(from_to[1]), from_to[2], ref(from_to[3]));
-        MPI_Send(&res, 1, MPI_DOUBLE, 0,0 , MPI_COMM_WORLD);
+        int from_to[4];
+        int k = 0;
+        MPI_Recv(&from_to, 4, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+        for (auto i = segments.begin(); i < segments.end() - 1; ++i) {
+            if (k != from_to[0])continue;
+            result = fn1(*i, *(i + 1), num_of_threads, ref(num));
+            k++;
+        }
+
+//        result = fn1(*segments[from_to[0]], *(segments[from_to[1]] + 1), from_to[2], ref(from_to[3]));
+        double res_to_send[]{result};
+        MPI_Send(res_to_send, 1, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 
     }
 //    for (auto i = segments.begin(); i < segments.end() - 1; ++i) {
@@ -286,11 +305,26 @@ int main(int argc, char *argv[]) {
     commsize = commsize1;
 
     vector<double> data = {0, 4, 0, 4, 5, 0.001};
+    double data_to_send[] = {0, 4, 0, 4, 5, 0.001};
     deque<double> d;
     Iter2Ddouble itr(data);
     int num = 0;
     int n;
-    cout << "Integral" << endl;
-    cout << func_tmpl(itr, itr.end(), func_wrapper(5, n, num), d, thread_integration, commsize) << endl;
+//    cout << "Integral" << endl;
+//    cout << func_tmpl(itr, itr.end(), func_wrapper(5, n, num), d, thread_integration, commsize) << endl;
+    if (rankk == 0) {
+        for (int i = 1; i < commsize1; ++i) {
+            MPI_Send(data_to_send, 6, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+        }
+        func_tmpl(itr, itr.end(), func_wrapper(5, n, num), d, thread_integration, commsize);
+    } else {
+        vector<double> data_to_recv;
+        MPI_Recv(&data_to_recv, 6, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
+        deque<double> d;
+        Iter2Ddouble itr(data_to_recv);
+        int num = 0;
+        int n;
+        func_tmpl(itr, itr.end(), func_wrapper(5, n, num), d, thread_integration, commsize);
+    }
 }
