@@ -1,0 +1,2 @@
+infile="data.txt"
+threads=4
